@@ -166,6 +166,7 @@ func (req Request) ToStdLibRequest() (*http.Request, error) {
 		return shr, err
 	}
 	shr.Host = req.Headers["Host"] + "/" + req.Context.Stage
+	shr.URL.Host = req.Headers["Host"] + "/" + req.Context.Stage
 	shr.URL.Scheme = req.Headers["CloudFront-Forwarded-Proto"]
 	shr.RemoteAddr = req.Context.SourceIp
 	for key, values := range req.Headers {
