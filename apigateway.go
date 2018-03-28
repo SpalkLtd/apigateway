@@ -15,60 +15,14 @@ import (
 	"strings"
 
 	apex "github.com/apex/go-apex"
+	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-lambda-go/lambda"
 )
 
-//Context contains the information from the http request that is being forwarded by apigateway
-type Context struct {
-	ApiId        string `json:"apiId"`
-	Stage        string
-	SourceIp     string `json:"sourceIp"`
-	Identity     Identity
-	RequestId    string `json:"requestId"`
-	ResourceId   string `json:"resourceId"`
-	ResourcePath string `json:"resourcePath"`
-}
-
-//Identity contains information about the user who made the request
-type Identity struct {
-	AccountId    string `json:"accountId"`
-	ApiKey       string `json:"apiKey"`
-	Caller       string
-	AuthProvider string `json:"cognitoAuthenticationProvider"`
-	AuthType     string `json:"cognitoAuthenticationType"`
-	IdentId      string `json:"cognitoIdentityId"`
-	IdentPoolId  string `json:"cognitoIdentityPoolId"`
-	User         string
-	UserAgent    string `json:"userAgent"`
-	UserArn      string `json:"userArn"`
-}
-
-//Request is the format of the apigateway request passed to the lambda
-type Request struct {
-	Resource              string
-	Path                  string
-	HttpMethod            string
-	Headers               map[string]string
-	QueryStringParameters map[string]string
-	PathParameters        map[string]string
-	StageVariables        map[string]string
-	Context               Context `json:"requestContext"`
-	Body                  string
-	IsBase64              bool
-}
-
-// Response format expected by apigateway from a lambda proxy integration
-type Response struct {
-	StatusCode int               `json:"statusCode"`
-	Body       string            `json:"body,omitempty"`
-	RequestId  string            `json:"-"` //`json:"requestId"`
-	Error      string            `json:"-,omitempty"`
-	Headers    map[string]string `json:"headers,omitempty"`
-}
-
 //Respond will produce a response that will get formatted such that apigateway will modify it's response to the browser
-func Respond(body interface{}, status int, req Request, err error) (Response, error) {
+func Respond(body interface{}, status int, req events.APIGatewayProxyRequest, err error) (events.APIGatewayProxyResponse, error) {
 	// log.Println("Entering Respond")
-	if reflect.TypeOf(body).Kind() == reflect.Func {
+	if body != nil && reflect.TypeOf(body).Kind() == reflect.Func {
 		log.Println("Unsuported return type")
 	}
 	debug.PrintStack()
@@ -76,8 +30,8 @@ func Respond(body interface{}, status int, req Request, err error) (Response, er
 	if jsonerr != nil {
 		log.Println(jsonerr.Error())
 	}
-	resp := Response{
-		RequestId:  req.Context.RequestId,
+	resp := events.APIGatewayProxyResponse{
+		// RequestID:  req.Context.RequestId,
 		StatusCode: status,
 		Body:       fmt.Sprintf("%s", bodyBytes),
 	}
@@ -151,7 +105,7 @@ func RespondHTTP(rw http.ResponseWriter, body interface{}, status int) {
 }
 
 //ToStdLibRequest converts the parsed json message into the format expected by the std library
-func (req Request) ToStdLibRequest() (*http.Request, error) {
+func ToStdLibRequest(req events.APIGatewayProxyRequest) (*http.Request, error) {
 	// spew.Fdump(os.Stderr, req)
 	queryString := "?"
 	for key, value := range req.QueryStringParameters {
@@ -161,14 +115,14 @@ func (req Request) ToStdLibRequest() (*http.Request, error) {
 		queryString += key + "=" + value
 
 	}
-	shr, err := http.NewRequest(req.HttpMethod, "https://host"+req.Path+queryString, bytes.NewBuffer([]byte(req.Body)))
+	shr, err := http.NewRequest(req.HTTPMethod, "https://host"+req.Path+queryString, bytes.NewBuffer([]byte(req.Body)))
 	if err != nil {
 		return shr, err
 	}
-	shr.Host = req.Headers["Host"] + "/" + req.Context.Stage
-	shr.URL.Host = req.Headers["Host"] + "/" + req.Context.Stage
+	shr.Host = req.Headers["Host"] + "/" + req.RequestContext.Stage
+	shr.URL.Host = req.Headers["Host"] + "/" + req.RequestContext.Stage
 	shr.URL.Scheme = req.Headers["CloudFront-Forwarded-Proto"]
-	shr.RemoteAddr = req.Context.SourceIp
+	shr.RemoteAddr = req.RequestContext.Identity.SourceIP
 	for key, values := range req.Headers {
 		shr.Header.Add(key, values)
 	}
@@ -177,7 +131,7 @@ func (req Request) ToStdLibRequest() (*http.Request, error) {
 
 //ResponseWriter implements the net/http ResponseWriter interface for using stdlib compliant server libraries with apigateway and lambdas
 type ResponseWriter struct {
-	resp   Response
+	resp   events.APIGatewayProxyResponse
 	body   bytes.Buffer
 	header http.Header
 }
@@ -203,7 +157,7 @@ func (rw *ResponseWriter) WriteHeader(status int) {
 }
 
 //GetResponse formats the net/http response to how the response is expected by apigateway
-func (rw *ResponseWriter) GetResponse() (Response, error) {
+func (rw *ResponseWriter) GetResponse() (events.APIGatewayProxyResponse, error) {
 	// log.Println("Entering GetResponse()")
 	rw.resp.Body = rw.body.String()
 	rw.resp.Headers = make(map[string]string, len(rw.header))
@@ -215,10 +169,10 @@ func (rw *ResponseWriter) GetResponse() (Response, error) {
 }
 
 //Serve handles and responds to the requests using a net/http handler
-func Serve(req Request, handler http.Handler) (Response, error) {
+func Serve(req events.APIGatewayProxyRequest, handler http.Handler) (events.APIGatewayProxyResponse, error) {
 	// log.Println("Entering Serve")
 	// defer func() { log.Println("Exiting Serve") }()
-	shr, err := req.ToStdLibRequest()
+	shr, err := ToStdLibRequest(req)
 	if err != nil {
 		log.Println(err.Error())
 		return Respond(nil, 500, req, err)
@@ -230,12 +184,8 @@ func Serve(req Request, handler http.Handler) (Response, error) {
 
 //StartApex starts the apex server than marshals requests in/out of the apex shim using stdin/stdout
 func StartApex(handler http.Handler) {
-	// log.Println("Starting Apex server")
-	// defer func() { log.Println("Apex server stopped") }()
 	apex.HandleFunc(func(event json.RawMessage, ctx *apex.Context) (interface{}, error) {
-		var req Request
-		// log.Println("Entering Apex event handler")
-		// defer func() { log.Println("Exiting Apex event handler") }()
+		var req events.APIGatewayProxyRequest
 		if err := json.Unmarshal(event, &req); err != nil {
 			log.Println(err.Error())
 			log.Println(string(event))
@@ -249,6 +199,24 @@ func StartApex(handler http.Handler) {
 			log.Println(err.Error())
 		}
 		return resp, err
+	})
+}
 
+func StartLambda(handler http.Handler) {
+	lambda.Start(func(req events.APIGatewayProxyRequest) (interface{}, error) {
+		// var req events.APIGatewayProxyRequest
+		// if err := json.Unmarshal(event, &req); err != nil {
+		// 	log.Println(err.Error())
+		// 	log.Println(string(event))
+		// 	return Respond(nil, 401, req, err)
+		// }
+		for k, v := range req.StageVariables {
+			os.Setenv(k, v)
+		}
+		resp, err := Serve(req, handler)
+		if err != nil {
+			log.Println(err.Error())
+		}
+		return resp, err
 	})
 }
