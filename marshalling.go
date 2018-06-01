@@ -36,9 +36,12 @@ func ToStdLibRequest(req events.APIGatewayProxyRequest) (*http.Request, error) {
 func ToApigRequest(req http.Request) (events.APIGatewayProxyRequest, error) {
 	apigReq := events.APIGatewayProxyRequest{}
 
-	parts := strings.Split(req.URL.RawPath, "/")
-	apigReq.RequestContext.Stage = parts[0]
+	parts := strings.Split(req.URL.Path, "/")
+	apigReq.RequestContext.Stage = parts[1]
 	apigReq.HTTPMethod = req.Method
+	apigReq.Path = strings.Join(parts[1:], "/")
+	apigReq.Headers = make(map[string]string)
+	apigReq.QueryStringParameters = make(map[string]string)
 	query := req.URL.Query()
 	for k, v := range query {
 		apigReq.QueryStringParameters[k] = v[len(v)-1]
@@ -49,11 +52,13 @@ func ToApigRequest(req http.Request) (events.APIGatewayProxyRequest, error) {
 	apigReq.Headers["Host"] = req.Host
 	apigReq.Headers["CloudFront-Forwarded-Proto"] = req.URL.Scheme
 	apigReq.RequestContext.Identity.SourceIP = req.RemoteAddr
-	body, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		return apigReq, err
+	if req.Body != nil {
+		body, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			return apigReq, err
+		}
+		apigReq.Body = string(body)
 	}
-	apigReq.Body = string(body)
 	return apigReq, nil
 }
 
