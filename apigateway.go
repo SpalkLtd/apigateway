@@ -104,31 +104,6 @@ func RespondHTTP(rw http.ResponseWriter, body interface{}, status int) {
 	// log.Println("Exiting RespondHTTP")
 }
 
-//ToStdLibRequest converts the parsed json message into the format expected by the std library
-func ToStdLibRequest(req events.APIGatewayProxyRequest) (*http.Request, error) {
-	// spew.Fdump(os.Stderr, req)
-	queryString := "?"
-	for key, value := range req.QueryStringParameters {
-		if len(queryString) > 1 {
-			queryString += "&"
-		}
-		queryString += key + "=" + value
-
-	}
-	shr, err := http.NewRequest(req.HTTPMethod, "https://host"+req.Path+queryString, bytes.NewBuffer([]byte(req.Body)))
-	if err != nil {
-		return shr, err
-	}
-	shr.Host = req.Headers["Host"] + "/" + req.RequestContext.Stage
-	shr.URL.Host = req.Headers["Host"] + "/" + req.RequestContext.Stage
-	shr.URL.Scheme = req.Headers["CloudFront-Forwarded-Proto"]
-	shr.RemoteAddr = req.RequestContext.Identity.SourceIP
-	for key, values := range req.Headers {
-		shr.Header.Add(key, values)
-	}
-	return shr, err
-}
-
 //ResponseWriter implements the net/http ResponseWriter interface for using stdlib compliant server libraries with apigateway and lambdas
 type ResponseWriter struct {
 	resp   events.APIGatewayProxyResponse
