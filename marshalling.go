@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 )
+
+var re = regexp.MustCompile(`(?m)\w+.execute-api.[\w-]+.amazonaws.com`)
 
 //ToStdLibRequest converts the parsed json message into the format expected by the std library
 func ToStdLibRequest(req events.APIGatewayProxyRequest) (*http.Request, error) {
@@ -23,8 +26,15 @@ func ToStdLibRequest(req events.APIGatewayProxyRequest) (*http.Request, error) {
 	if err != nil {
 		return shr, err
 	}
-	shr.Host = req.Headers["Host"] + "/" + req.RequestContext.Stage
-	shr.URL.Host = req.Headers["Host"] + "/" + req.RequestContext.Stage
+
+	shr.Host = req.Headers["Host"]
+	shr.URL.Host = req.Headers["Host"]
+	// If we are on an aws domain, add the request Stage to the host
+	// (as it sneaks into the url path but is not considered in the "Path")
+	if re.MatchString(req.Headers["Host"]) {
+		shr.Host = shr.Host + "/" + req.RequestContext.Stage
+		shr.URL.Host = shr.URL.Host + "/" + req.RequestContext.Stage
+	}
 	shr.URL.Scheme = req.Headers["CloudFront-Forwarded-Proto"]
 	shr.RemoteAddr = req.RequestContext.Identity.SourceIP
 	for key, values := range req.Headers {
@@ -37,9 +47,13 @@ func ToApigRequest(req http.Request) (events.APIGatewayProxyRequest, error) {
 	apigReq := events.APIGatewayProxyRequest{}
 
 	parts := strings.Split(req.URL.Path, "/")
-	apigReq.RequestContext.Stage = parts[1]
+	if parts[1] == "dev" || parts[1] == "prod" || parts[1] == "staging" {
+		apigReq.RequestContext.Stage = parts[1]
+		apigReq.Path = strings.Join(parts[1:], "/")
+	} else {
+		apigReq.Path = req.URL.Path
+	}
 	apigReq.HTTPMethod = req.Method
-	apigReq.Path = strings.Join(parts[1:], "/")
 	apigReq.Headers = make(map[string]string)
 	apigReq.QueryStringParameters = make(map[string]string)
 	query := req.URL.Query()
@@ -47,7 +61,7 @@ func ToApigRequest(req http.Request) (events.APIGatewayProxyRequest, error) {
 		apigReq.QueryStringParameters[k] = v[len(v)-1]
 	}
 	for key, values := range req.Header {
-		apigReq.Headers[key] = values[len(values)-1]
+		apigReq.Headers[key] = strings.Join(values, ";")
 	}
 	apigReq.Headers["Host"] = req.Host
 	apigReq.Headers["CloudFront-Forwarded-Proto"] = req.URL.Scheme
