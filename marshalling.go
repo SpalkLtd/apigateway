@@ -83,7 +83,10 @@ func ToStdLibResponse(resp events.APIGatewayProxyResponse) http.Response {
 		Header:     http.Header{},
 	}
 	for k, v := range resp.Headers {
-		shr.Header.Add(k, v)
+		headers := strings.Split(v, ",")
+		for _, h := range headers {
+			shr.Header.Add(k, h)
+		}
 	}
 	return shr
 }
