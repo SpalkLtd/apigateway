@@ -12,7 +12,9 @@ import (
 	"os"
 	"reflect"
 	"runtime/debug"
+	"strconv"
 	"strings"
+	"unicode"
 
 	apex "github.com/apex/go-apex"
 	"github.com/aws/aws-lambda-go/events"
@@ -133,14 +135,48 @@ func (rw *ResponseWriter) WriteHeader(status int) {
 
 //GetResponse formats the net/http response to how the response is expected by apigateway
 func (rw *ResponseWriter) GetResponse() (events.APIGatewayProxyResponse, error) {
-	// log.Println("Entering GetResponse()")
 	rw.resp.Body = rw.body.String()
 	rw.resp.Headers = make(map[string]string, len(rw.header))
 	for key, values := range rw.header {
-		rw.resp.Headers[key] = strings.Join(values, ",")
+		if strings.ToLower(key) == "set-cookie" {
+			for i, v := range values {
+				rw.resp.Headers[setCookieCasing(i)] = v
+			}
+		} else {
+			rw.resp.Headers[key] = strings.Join(values, ",")
+		}
 	}
-	// log.Printf("Exiting GetResponse and returning %v", rw.resp)
 	return rw.resp, nil
+}
+
+const SET_COOKIE = "setcookie"
+
+func setCookieCasing(i int) string {
+	returnVal := ""
+	if i == 0 {
+		return "set-cookie"
+	}
+	j := int64(512 - i%512)
+	strRep := strconv.FormatInt(j, 2)
+	for k := 0; k < len(strRep); k++ {
+		if strRep[k] == []byte("1")[0] {
+			returnVal = returnVal + toggleCase(SET_COOKIE[k])
+		} else {
+			returnVal = returnVal + string(SET_COOKIE[k])
+		}
+		if k == 2 {
+			returnVal = returnVal + "-"
+		}
+	}
+	return returnVal
+}
+
+func toggleCase(a byte) string {
+	if unicode.IsUpper(rune(a)) {
+		return strings.ToLower(string(a))
+	}
+	return strings.ToUpper(string(a))
+
 }
 
 //Serve handles and responds to the requests using a net/http handler
