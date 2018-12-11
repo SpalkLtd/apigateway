@@ -6,6 +6,7 @@ package apig
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -20,6 +21,8 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 )
+
+var ErrNoHandler = errors.New("No handler defined for event of that type")
 
 //Respond will produce a response that will get formatted such that apigateway will modify it's response to the browser
 func Respond(body interface{}, status int, req events.APIGatewayProxyRequest, err error) (events.APIGatewayProxyResponse, error) {
@@ -213,21 +216,29 @@ func StartApex(handler http.Handler) {
 	})
 }
 
-func StartLambda(handler http.Handler) {
-	lambda.Start(func(req events.APIGatewayProxyRequest) (interface{}, error) {
-		// var req events.APIGatewayProxyRequest
-		// if err := json.Unmarshal(event, &req); err != nil {
-		// 	log.Println(err.Error())
-		// 	log.Println(string(event))
-		// 	return Respond(nil, 401, req, err)
-		// }
-		for k, v := range req.StageVariables {
-			os.Setenv(k, v)
+func StartLambda(handler http.Handler, fallback lambdaHandlerFunc) {
+	lambda.Start(LambdaHandler(handler, fallback))
+}
+
+type lambdaHandlerFunc func(event json.RawMessage) (interface{}, error)
+
+func LambdaHandler(handler http.Handler, fallback lambdaHandlerFunc) lambdaHandlerFunc {
+	return func(event json.RawMessage) (interface{}, error) {
+		var err error
+		var apigEvent events.APIGatewayProxyRequest
+		if err = json.Unmarshal(event, &apigEvent); err == nil && apigEvent.Path != "" {
+			for k, v := range apigEvent.StageVariables {
+				os.Setenv(k, v)
+			}
+			resp, err := Serve(apigEvent, handler)
+			if err != nil {
+				log.Println(err.Error())
+			}
+			return resp, err
 		}
-		resp, err := Serve(req, handler)
-		if err != nil {
-			log.Println(err.Error())
+		if fallback != nil {
+			return fallback(event)
 		}
-		return resp, err
-	})
+		return nil, ErrNoHandler
+	}
 }
