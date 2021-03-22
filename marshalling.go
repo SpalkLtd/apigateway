@@ -44,7 +44,6 @@ func ToStdLibRequest(req events.APIGatewayProxyRequest) (*http.Request, error) {
 }
 
 func ToStdLibRequestV2(req events.APIGatewayV2HTTPRequest) (*http.Request, error) {
-	// spew.Fdump(os.Stderr, req)
 	queryString := "?"
 	for key, value := range req.QueryStringParameters {
 		if len(queryString) > 1 {

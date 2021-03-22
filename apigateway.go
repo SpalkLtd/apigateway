@@ -66,17 +66,14 @@ func Respond(body interface{}, status int, req events.APIGatewayProxyRequest, er
 
 //RespondvV2 will produce a response that will get formatted such that apigateway will modify it's response to the browser
 func RespondvV2(body interface{}, status int, req events.APIGatewayV2HTTPRequest, err error) (events.APIGatewayV2HTTPResponse, error) {
-	// log.Println("Entering Respond")
 	if body != nil && reflect.TypeOf(body).Kind() == reflect.Func {
 		log.Println("Unsuported return type")
 	}
-	debug.PrintStack()
 	bodyBytes, jsonerr := json.Marshal(body)
 	if jsonerr != nil {
 		log.Println(jsonerr.Error())
 	}
 	resp := events.APIGatewayV2HTTPResponse{
-		// RequestID:  req.Context.RequestId,
 		StatusCode: status,
 		Body:       fmt.Sprintf("%s", bodyBytes),
 	}
@@ -165,7 +162,6 @@ func (rw *ResponseWriterV2) Header() http.Header {
 }
 
 func (rw *ResponseWriterV2) Write(data []byte) (int, error) {
-	// log.Println("Called ResponseWriter.Write()")
 	return rw.body.Write(data)
 }
 
@@ -267,8 +263,6 @@ func toggleCase(a byte) string {
 
 //ServeV2 handles and responds to the requests using a net/http handler
 func ServeV2(req events.APIGatewayV2HTTPRequest, handler http.Handler) (events.APIGatewayV2HTTPResponse, error) {
-	// log.Println("Entering Serve")
-	// defer func() { log.Println("Exiting Serve") }()
 	shr, err := ToStdLibRequestV2(req)
 	if err != nil {
 		log.Println(err.Error())
