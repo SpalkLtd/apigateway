@@ -64,8 +64,8 @@ func Respond(body interface{}, status int, req events.APIGatewayProxyRequest, er
 	return resp, nil
 }
 
-//RespondvV2 will produce a response that will get formatted such that apigateway will modify it's response to the browser
-func RespondvV2(body interface{}, status int, req events.APIGatewayV2HTTPRequest, err error) (events.APIGatewayV2HTTPResponse, error) {
+//RespondV2 will produce a response that will get formatted such that apigateway will modify it's response to the browser
+func RespondV2(body interface{}, status int, req events.APIGatewayV2HTTPRequest, err error) (events.APIGatewayV2HTTPResponse, error) {
 	if body != nil && reflect.TypeOf(body).Kind() == reflect.Func {
 		log.Println("Unsuported return type")
 	}
@@ -266,7 +266,7 @@ func ServeV2(req events.APIGatewayV2HTTPRequest, handler http.Handler) (events.A
 	shr, err := ToStdLibRequestV2(req)
 	if err != nil {
 		log.Println(err.Error())
-		return RespondvV2(nil, 500, req, err)
+		return RespondV2(nil, 500, req, err)
 	}
 	rw := ResponseWriterV2{}
 	handler.ServeHTTP(&rw, shr)
