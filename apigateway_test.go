@@ -145,7 +145,6 @@ func TestToStdLibRequestMultiQuery(t *testing.T) {
 	req := events.APIGatewayProxyRequest{}
 	err := json.Unmarshal(body, &req)
 	require.NoError(t, err)
-	log.Println(req)
 	stReq, err := apig.ToStdLibRequest(req)
 	require.NoError(t, err)
 	require.Equal(t, "https://1234567890.execute-api.us-east-1.amazonaws.com%2Fprod/path/to/resource?petType=dog&petType=fish", stReq.URL.String())
@@ -226,10 +225,10 @@ func TestToStdLibRequestV2MultiQuery(t *testing.T) {
 	req := events.APIGatewayV2HTTPRequest{}
 	err := json.Unmarshal(body, &req)
 	require.NoError(t, err)
-	log.Println(req)
+
 	stReq, err := apig.ToStdLibRequestV2(req)
 	require.NoError(t, err)
-	require.Equal(t, "petType=cat&petType=dog&parameter2=value", stReq.URL.RawQuery)
+	require.Equal(t, []string{"cat", "dog"}, stReq.URL.Query()["petType"])
 }
 
 func TestToApigRequestMultiQuery(t *testing.T) {
@@ -238,5 +237,9 @@ func TestToApigRequestMultiQuery(t *testing.T) {
 
 	apgReq, err := apig.ToApigRequest(*req)
 	require.NoError(t, err)
-	require.Equal(t, "", apgReq.MultiValueQueryStringParameters)
+	require.Equal(t, map[string][]string{
+		"page":         []string{"0"},
+		"pageSize":     []string{"20"},
+		"reviewFilter": []string{"2", "5", "4"},
+	}, apgReq.MultiValueQueryStringParameters)
 }
