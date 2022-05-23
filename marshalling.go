@@ -16,11 +16,13 @@ var re = regexp.MustCompile(`(?m)\w+.execute-api.[\w-]+.amazonaws.com`)
 func ToStdLibRequest(req events.APIGatewayProxyRequest) (*http.Request, error) {
 	// spew.Fdump(os.Stderr, req)
 	queryString := "?"
-	for key, value := range req.QueryStringParameters {
-		if len(queryString) > 1 {
-			queryString += "&"
+	for key, values := range req.MultiValueQueryStringParameters {
+		for _, value := range values {
+			if len(queryString) > 1 {
+				queryString += "&"
+			}
+			queryString += key + "=" + value
 		}
-		queryString += key + "=" + value
 	}
 	shr, err := http.NewRequest(req.HTTPMethod, "https://host"+req.Path+queryString, bytes.NewBuffer([]byte(req.Body)))
 	if err != nil {
@@ -46,10 +48,13 @@ func ToStdLibRequest(req events.APIGatewayProxyRequest) (*http.Request, error) {
 func ToStdLibRequestV2(req events.APIGatewayV2HTTPRequest) (*http.Request, error) {
 	queryString := "?"
 	for key, value := range req.QueryStringParameters {
-		if len(queryString) > 1 {
-			queryString += "&"
+		values := strings.Split(value, ",")
+		for _, v := range values {
+			if len(queryString) > 1 {
+				queryString += "&"
+			}
+			queryString += key + "=" + v
 		}
-		queryString += key + "=" + value
 	}
 	shr, err := http.NewRequest(req.RequestContext.HTTP.Method, "https://host"+req.RawPath+queryString, bytes.NewBuffer([]byte(req.Body)))
 	if err != nil {
@@ -84,10 +89,10 @@ func ToApigRequest(req http.Request) (events.APIGatewayProxyRequest, error) {
 	}
 	apigReq.HTTPMethod = req.Method
 	apigReq.Headers = make(map[string]string)
-	apigReq.QueryStringParameters = make(map[string]string)
+	apigReq.MultiValueQueryStringParameters = make(map[string][]string)
 	query := req.URL.Query()
 	for k, v := range query {
-		apigReq.QueryStringParameters[k] = v[len(v)-1]
+		apigReq.MultiValueQueryStringParameters[k] = v
 	}
 	for key, values := range req.Header {
 		apigReq.Headers[key] = strings.Join(values, ";")
