@@ -5,9 +5,12 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	apig "github.com/SpalkLtd/apigateway"
+	"github.com/SpalkLtd/slogger"
+	"github.com/SpalkLtd/slogger/notifiers/testNotifier"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/stretchr/testify/require"
 )
@@ -242,4 +245,19 @@ func TestToApigRequestMultiQuery(t *testing.T) {
 		"pageSize":     []string{"20"},
 		"reviewFilter": []string{"2", "5", "4"},
 	}, apgReq.MultiValueQueryStringParameters)
+}
+
+func TestRespondHttpResponseBodyTooLarge(t *testing.T) {
+	logger := slogger.NewLogger()
+	tNot := testNotifier.New()
+	logger.SetNotifier(tNot)
+	logger.SetDefaultLogger()
+	apig.SetLogger(logger)
+
+	rw := httptest.NewRecorder()
+	apig.RespondHTTP(rw, make([]byte, 6*1000*1000+1), http.StatusOK)
+
+	require.Equal(t, http.StatusInternalServerError, rw.Code)
+	require.Equal(t, "Response body too large\n", rw.Body.String())
+	require.True(t, tNot.GotNotification("Response body too large"))
 }
