@@ -8,8 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -17,10 +15,6 @@ import (
 	"unicode"
 
 	"github.com/SpalkLtd/slogger"
-	"github.com/SpalkLtd/slogger/loggers/defaultLogger"
-	"github.com/SpalkLtd/slogger/loggers/logentries"
-	"github.com/SpalkLtd/slogger/loggers/teeLogger"
-	"github.com/SpalkLtd/slogger/notifiers/airbrake"
 	apex "github.com/apex/go-apex"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -28,42 +22,17 @@ import (
 
 const awsLambdaMaxBodySize = 6 * 1000 * 1000 // 6 MB
 
-var logger *slogger.SpalkLogger
+var logger = slogger.NewLogger()
 
 func init() {
-	env := os.Getenv("ENVIRONMENT")
-	if env == "" {
-		env = "dev"
-	}
-	logger = slogger.NewLogger()
-	logHost := os.Getenv("LS_LOG_HOST")
-	logToken := os.Getenv("LS_LOG_TOKEN")
-	if logHost != "" && logToken != "" {
-		// Note call depth offset here: should tell us which apig.RespondHTTP call caused any errors
-		leLogger, err := logentries.New(logHost, logToken, 1000, io.Discard, 2)
-		if err == nil {
-			l := defaultLogger.New(os.Stdout, "", defaultLogger.Lmicroseconds|defaultLogger.Lshortfile, 1)
-			tLogger := teeLogger.NewChained(l, leLogger)
-			logger.SetLogger(tLogger)
-		} else {
-			l := defaultLogger.New(os.Stdout, "", defaultLogger.Lmicroseconds|defaultLogger.Lshortfile, 0)
-			logger.SetLogger(l)
-			logger.WithError(err).Println()
-		}
-	} else {
-		logger.SetDefaultLogger()
-	}
-	logger.Logger.SetFlags(log.Ltime | log.Lmicroseconds | log.Lshortfile)
-
-	errbitHost := os.Getenv("ERRBIT_HOST")
-	errbitKey := os.Getenv("ERRBIT_API_KEY")
-	if errbitHost != "" && errbitKey != "" {
-		logger.Notifier = airbrake.New(errbitHost, errbitKey, env, 1234)
-	}
-	logger.SetTag("environment", env)
+	logger.SetDefaultLogger()
 }
 
 var ErrNoHandler = errors.New("No handler defined for event of that type")
+
+func SetLogger(l *slogger.SpalkLogger) {
+	logger = l
+}
 
 //Respond will produce a response that will get formatted such that apigateway will modify it's response to the browser
 func Respond(body interface{}, status int, req events.APIGatewayProxyRequest, err error) (events.APIGatewayProxyResponse, error) {
