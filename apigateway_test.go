@@ -241,9 +241,9 @@ func TestToApigRequestMultiQuery(t *testing.T) {
 	apgReq, err := apig.ToApigRequest(*req)
 	require.NoError(t, err)
 	require.Equal(t, map[string][]string{
-		"page":         []string{"0"},
-		"pageSize":     []string{"20"},
-		"reviewFilter": []string{"2", "5", "4"},
+		"page":         {"0"},
+		"pageSize":     {"20"},
+		"reviewFilter": {"2", "5", "4"},
 	}, apgReq.MultiValueQueryStringParameters)
 }
 

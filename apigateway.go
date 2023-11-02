@@ -11,8 +11,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"reflect"
-	"runtime/debug"
 	"strconv"
 	"strings"
 	"unicode"
@@ -63,10 +61,6 @@ var ErrNoHandler = errors.New("No handler defined for event of that type")
 
 //Respond will produce a response that will get formatted such that apigateway will modify it's response to the browser
 func Respond(body interface{}, status int, req events.APIGatewayProxyRequest, err error) (events.APIGatewayProxyResponse, error) {
-	if body != nil && reflect.TypeOf(body).Kind() == reflect.Func {
-		logger.Println("Unsuported return type")
-	}
-	debug.PrintStack()
 	bodyBytes, jsonerr := json.Marshal(body)
 	if jsonerr != nil {
 		logger.Println(jsonerr.Error())
@@ -101,9 +95,6 @@ func Respond(body interface{}, status int, req events.APIGatewayProxyRequest, er
 
 //RespondV2 will produce a response that will get formatted such that apigateway will modify it's response to the browser
 func RespondV2(body interface{}, status int, req events.APIGatewayV2HTTPRequest, err error) (events.APIGatewayV2HTTPResponse, error) {
-	if body != nil && reflect.TypeOf(body).Kind() == reflect.Func {
-		logger.Println("Unsuported return type")
-	}
 	bodyBytes, jsonerr := json.Marshal(body)
 	if jsonerr != nil {
 		logger.Println(jsonerr.Error())
@@ -141,11 +132,6 @@ func RespondV2(body interface{}, status int, req events.APIGatewayV2HTTPRequest,
 //This does not end the requset, but does write the header. Care should be taken to close the response after this has been called
 func RespondHTTP(rw http.ResponseWriter, body interface{}, status int) {
 	if body != nil {
-		if reflect.TypeOf(body).Kind() == reflect.Func {
-			logger.Println("Unsuported return type")
-			debug.PrintStack()
-			return
-		}
 		if err, ok := body.(error); ok {
 			if status < 400 {
 				status = http.StatusInternalServerError
