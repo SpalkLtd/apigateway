@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -16,7 +17,9 @@ import (
 	"unicode"
 
 	"github.com/SpalkLtd/slogger"
+	"github.com/SpalkLtd/slogger/loggers/defaultLogger"
 	"github.com/SpalkLtd/slogger/loggers/logentries"
+	"github.com/SpalkLtd/slogger/loggers/teeLogger"
 	"github.com/SpalkLtd/slogger/notifiers/airbrake"
 	apex "github.com/apex/go-apex"
 	"github.com/aws/aws-lambda-go/events"
@@ -37,11 +40,14 @@ func init() {
 	logToken := os.Getenv("LS_LOG_TOKEN")
 	if logHost != "" && logToken != "" {
 		// Note call depth offset here: should tell us which apig.RespondHTTP call caused any errors
-		leLogger, err := logentries.New(logHost, logToken, 0, nil, 1)
+		leLogger, err := logentries.New(logHost, logToken, 1000, io.Discard, 2)
 		if err == nil {
-			logger.SetLogger(leLogger)
+			l := defaultLogger.New(os.Stdout, "", defaultLogger.Lmicroseconds|defaultLogger.Lshortfile, 1)
+			tLogger := teeLogger.NewChained(l, leLogger)
+			logger.SetLogger(tLogger)
 		} else {
-			logger.SetDefaultLogger()
+			l := defaultLogger.New(os.Stdout, "", defaultLogger.Lmicroseconds|defaultLogger.Lshortfile, 0)
+			logger.SetLogger(l)
 			logger.WithError(err).Println()
 		}
 	} else {
