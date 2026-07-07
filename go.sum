@@ -1,7 +1,7 @@
-github.com/SpalkLtd/gobrake v0.0.0-20260707030502-a2e0d064bfcc h1:27oLHD2R+q6WZR5FjAD6pN5L/syIaQca2uG+6aXTLyo=
-github.com/SpalkLtd/gobrake v0.0.0-20260707030502-a2e0d064bfcc/go.mod h1:fYvvdNMb7JyzjyM5zaYQ6oMuljswcQ08iy40LbkNHTc=
-github.com/SpalkLtd/slogger v0.0.0-20260707030527-94531f0a0a34 h1:Mrx6mf5yDllCc8PRNuFcKb1C2f4+MYBgv7EEZGt/4D8=
-github.com/SpalkLtd/slogger v0.0.0-20260707030527-94531f0a0a34/go.mod h1:3u3R0dnr8Q0nnRBz/r3lLUQgEA2zxLeGPhMdjlwquHM=
+github.com/SpalkLtd/gobrake v0.0.0-20260707044428-693e103df045 h1:FTwWU68UyhLB2k1m75lXnC79nk8CPaSZg3cNb03UDg4=
+github.com/SpalkLtd/gobrake v0.0.0-20260707044428-693e103df045/go.mod h1:fYvvdNMb7JyzjyM5zaYQ6oMuljswcQ08iy40LbkNHTc=
+github.com/SpalkLtd/slogger v0.0.0-20260707102822-b15d0849b99b h1:CCzbXefFb9ZGI80Sdzjt0no6AMnYpaoo9ECwjNL2FAc=
+github.com/SpalkLtd/slogger v0.0.0-20260707102822-b15d0849b99b/go.mod h1:FZ9uZQzydIhKTBiI2ze3N1j0IVydCYPfM2PYKCOBPPo=
 github.com/apex/go-apex v1.0.0 h1:Em8+vo4WXEQp7GfNDTr35HRnE5sFYcRpkTODpVjU39A=
 github.com/apex/go-apex v1.0.0/go.mod h1:Hy8WsL4dnQc/bYBxElRQ7xHXLNBAqz0BVxUhHiGwKLA=
 github.com/aws/aws-lambda-go v1.41.0 h1:l/5fyVb6Ud9uYd411xdHZzSf2n86TakxzpvIoz7l+3Y=
